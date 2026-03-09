@@ -1,5 +1,5 @@
 
-name: Build APK
+name: build
 
 on:
 
@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  build:
+  apk:
 
     runs-on: ubuntu-latest
 
@@ -15,19 +15,57 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+        with:
+
+          ref: main
+
+      - name: Setup Java
+
+        uses: actions/setup-java@v4
+
+        with:
+
+          distribution: 'zulu'
+
+          java-version: '17'
+
+      - name: Setup Flutter
+
+        uses: subosito/flutter-action@v2
 
         with:
 
           channel: 'stable'
 
-          cache: true
+      - name: Inject & Build
 
-      - run: flutter pub get
+        run: |
 
-      - run: flutter build apk --release
+          mkdir -p backup
 
-      - name: Upload APK
+          [ -f lib/main.dart ] && cp lib/main.dart backup/
+
+          [ -f pubspec.yaml ] && cp pubspec.yaml backup/
+
+          
+
+          rm -rf android lib pubspec.yaml
+
+          flutter create . --org com.royal --project-name my_cloud_compiler --platforms android --overwrite
+
+          
+
+          [ -f backup/main.dart ] && cp backup/main.dart lib/main.dart
+
+          [ -f backup/pubspec.yaml ] && cp backup/pubspec.yaml pubspec.yaml
+
+          
+
+          flutter pub get
+
+          flutter build apk --release --build-name=1.0.0 --build-number=${{ github.run_number }}
+
+      - name: Upload Direct APK
 
         uses: actions/upload-artifact@v4
 
@@ -36,8 +74,6 @@ jobs:
           name: release-apk
 
           path: build/app/outputs/flutter-apk/app-release.apk
-
-          if-no-files-found: error
 
           overwrite: true
 
